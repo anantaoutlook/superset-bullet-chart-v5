@@ -72,7 +72,7 @@ export default function BullectChart(props: any) {
     const config: any = {
       f: d3.format('.1f'),
       margin: {
-        top: -50,
+        top: 10,
         right: 0,
         bottom: 0,
         left: 20,
@@ -81,7 +81,7 @@ export default function BullectChart(props: any) {
     };
     const { f, margin, barHeight } = config;
     const w = selectedDataset.width;
-    const h = selectedDataset.height;
+    let h = selectedDataset.height;
     const halfBarHeight = barHeight;
     const lineHeight = 1.1;
 
@@ -185,33 +185,58 @@ export default function BullectChart(props: any) {
       : resultset.sort((a: any, b: any) => b.orderby - a.orderby);
 
     // const middleIndex = resultset.indexOf(resultset[Math.round((resultset.length - 1) / 2)]);
-    /* const middle =
-      resultset.length / 2 +
-      (resultset.length % 2 === 0 ? 1 : resultset.length % 2);
-    const middleIndex: any = parseInt(middle + ''); */
+    // const middle =
+    //   resultset.length / 2 +
+    //   (resultset.length % 2 === 0 ? 1 : resultset.length % 2);
+    // const middleIndex: any = parseInt(middle + '');
     const _data = groupData(resultset, total);
+    const checkMinimums = _data.filter((d: any) => d.percent < 5);
+    if (checkMinimums.length < 6) {
+      h = 130
+    }
+    if (checkMinimums.length < 3) {
+      h = 110
+    }
+    if (checkMinimums.length === 1) {
+      h = 80
+    }
+    if (_data.length === 1) {
+      h = 70
+    }
 
     //generate random number
-    const randomIntFromInterval = (min: number, max: number) => {
+    /* const randomIntFromInterval = (index: number, min: number, max: number) => {
       // min and max included
-      let num = Math.floor(Math.random() * (max - (min + 1)) + min);
+      let num = Math.floor(Math.random() * (max - (min + index)) + min);
       if (num % 5 === 0) {
         return num;
       } else {
-        num = Math.round(num / 11) * 11;
+        num = Math.round(num / 8) * 8;
         return num;
       }
-    };
+    }; */
+
     //genratePoints to draw ppolylines and flip according to x position to left/right
     const pointsArray: any = [];
     const yPoints: any = [];
+    let count = 1;
+    let secondCount = 1;
     const generatePoints = (d: any, index: any) => {
-      // const polyLineHeight = 13;
       const pointFirstX =
         xScale(d.cumulative)! + xScale(d.metricpossiblevalues)! / 2 - 12;
-      const pointFirstY = h / 2 + halfBarHeight * lineHeight - 20;
+      // const pointFirstY = h / 2 + halfBarHeight * lineHeight - 20;
+      const pointFirstY = 40;
       let pointSecondX = pointFirstX;
-      let pointSecondY = randomIntFromInterval(pointFirstY, h);
+      // let pointSecondY = randomIntFromInterval(index, pointFirstY + 15, h - 15);
+      let pointSecondY = 0;
+      if (pointFirstX < w / 2) {
+        pointSecondY = (h - 15) - (12 * count);
+        count++;
+      } else {
+        pointSecondY = pointFirstY + (12 * secondCount);
+        secondCount++;
+      }
+
       if (yPoints.indexOf(pointSecondY) === -1) {
         yPoints.push(pointSecondY);
         pointsArray.push({
@@ -221,35 +246,8 @@ export default function BullectChart(props: any) {
           percent: d.percent,
           points: `${pointFirstX} ${pointFirstY} ${pointSecondX} ${pointSecondY}`,
         });
-      } else {
-        generatePoints(d, index);
       }
       return true;
-      /*  if (pointFirstX < w / 2) {
-        pointSecondY = h - polyLineHeight * (index + 1);
-      } else {
-        pointSecondY = pointFirstY + polyLineHeight * (index + 1);
-      } */
-      // return `${pointFirstX} ${pointFirstY} ${pointSecondX} ${pointSecondY} ${pointThirdX} ${pointThirdY}`;
-      // return `${pointFirstX} ${pointFirstY} ${pointSecondX} ${pointSecondY}`;
-    };
-
-    const getPoints = (data: any, index: any) => {
-      const newArray = [...pointsArray];
-      const originalArray = [...pointsArray];
-      newArray.sort((a, b) => a.y - b.y);
-      newArray.forEach((na: any) => {
-        originalArray.forEach((oa: any) => {
-          if (na.x === oa.x) oa.y = na.y;
-        });
-      });
-      console.log('newArray', newArray);
-      console.log('originalArray', originalArray);
-      // console.log('pointsArray', pointsArray);
-      const res = originalArray.filter(
-        (d: any) => d.index === index && d.percent === data.percent,
-      );
-      return res[0].points;
     };
 
     //getPoints to draw text alignment
@@ -265,40 +263,30 @@ export default function BullectChart(props: any) {
       return alignPos;
     };
 
+    const getPoints = (data: any, index: any) => {
+      const newArray = [...pointsArray];
+      const originalArray = [...pointsArray];
+      newArray.sort((a, b) => b.y - a.y);
+      newArray.forEach((na: any, naIndex: number) => {
+        originalArray.forEach((oa: any) => {
+          if (na.index === oa.index) oa.y = na.y;
+        });
+      });
+      const res = originalArray.filter(
+        (d: any) => d.index === index && d.percent === data.percent,
+      );
+      return res[0].points;
+    };
+
+
     // find polyline endX position to place text at same X postion
     const getPolylineEndX = (selectionS: any, d: any, index: any) => {
-      /* const polylines: any = selectionS.selectAll('polyline') || null;
-      const filterVal = polylines.filter(
-        (d: any, eleIndex: number) => index === eleIndex,
-      );
-      const pointArr = filterVal[0][0].attributes[1].value.split(' ');
-      const xCordinate =
-        index < middleIndex
-          ? pointArr[pointArr.length - 2] + 7
-          : pointArr[pointArr.length - 2] - 5;
-      return xCordinate; */
       const filter = pointsArray.filter((d: any) => d.index === index);
       return filter.length > 0 ? filter[0].x : 0;
     };
 
     // find polyline endY position to place text at same Y postion
     const getPolylineEndY = (d: any, index: any) => {
-      /* const polyLineHeight = 13;
-      const pointFirstX =
-        xScale(d.cumulative)! + xScale(d.metricpossiblevalues)! / 2 - 12;
-      let pointFirstY = h / 2 + halfBarHeight * lineHeight - 20;
-      // let pointSecondY = 0
-      if (pointFirstX < w / 2) {
-        pointFirstY = h - polyLineHeight * (index + 1);
-      } else {
-        pointFirstY = pointFirstY + polyLineHeight * (index + 1);
-        if (pointFirstY > h) {
-          pointFirstY = pointFirstY + (polyLineHeight * (index - 1));
-        }
-      }
-      return pointFirstY + 8; */
-      /* console.log('pointsArray', pointsArray);
-      console.log('index Y', pointsArray[index] ? pointsArray[index].y : 0); */
       const filter = pointsArray.filter((d: any) => d.index === index);
       return filter.length > 0 ? filter[0].y + 8 : 0;
     };
@@ -311,14 +299,13 @@ export default function BullectChart(props: any) {
 
     // create svg in passed in div
     // d3.select("#graphic").selectAll('svg').remove();
-    // console.log('svgRef', svgRef);
     const selection = d3
       .select('#graphic')
       .append('svg')
       .attr('id', '#svg' + selectedDataset.chartIndex)
       // .attr('style', 'outline: thin solid #187581;')
       .attr('width', w)
-      .attr('height', _data.length === 1 ? 100 : h)
+      .attr('height', h)
       .append('g')
       .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
 
@@ -332,8 +319,9 @@ export default function BullectChart(props: any) {
       // .attr('text-anchor', 'end')
       .attr('font-size', '10px')
       .attr('font-weight', 'bold')
-      .attr('x', -10)
-      .attr('y', (d: any, i) => h / 2 - halfBarHeight * 2.2)
+      .attr('x', -15)
+      // .attr('y', (d: any, i) => h / 2 - halfBarHeight * 2.2)
+      .attr('y', 0)
       .text((d: any, index: number) =>
         index === 0
           ? selectedDataset.chartIndex + 1 + '. ' + d.company + ', ' + d.period
@@ -349,7 +337,8 @@ export default function BullectChart(props: any) {
       .append('rect')
       .attr('class', 'rect-stacked')
       .attr('x', (d: any) => xScale(d.cumulative)! - 12)
-      .attr('y', h / 2 - halfBarHeight)
+      // .attr('y', h / 2 - halfBarHeight)
+      .attr('y', 20)
       .attr('height', barHeight)
       .attr('width', (d: any) => xScale(d.metricpossiblevalues)!)
       .style('fill', (d, i) => customColors[i + 4])
@@ -376,7 +365,8 @@ export default function BullectChart(props: any) {
         (d: any) =>
           xScale(d.cumulative)! + xScale(d.metricpossiblevalues)! / 2 - 12,
       )
-      .attr('y', (d: any, i) => h / 2 - halfBarHeight * 1.1)
+      // .attr('y', (d: any, i) => h / 2 - halfBarHeight * 1.1)
+      .attr('y', (d: any, i) => 20)
       .text((d: any) =>
         getCompanyIndicator(d).metricvalue === d.metricpossible ? '▼' : '',
       );
@@ -416,20 +406,22 @@ export default function BullectChart(props: any) {
         (d: any) =>
           xScale(d.cumulative)! + xScale(d.metricpossiblevalues)! / 2 - 12,
       )
-      .attr('y', h / 2 + 15)
+      // .attr('y', h / 2 + 15)
+      .attr('y', 50)
       .style('fill', '#000')
       .attr('width', (d: any) => xScale(d.metricpossiblevalues)! / 3)
       .html((d: any) =>
         f(d.percent) < 5
           ? ''
           : d.metricpossible +
-            ', <span style="font-weight: bold;">' +
-            f(d.percent) +
-            '%</span>',
+          ', <span style="font-weight: bold;">' +
+          f(d.percent) +
+          '%</span>',
       )
       .call(getMetricPossible);
 
-    // draw polylines
+
+    // generate polyline points
     // d3.selectAll('polyline').remove();
     selection
       .selectAll('polylines')
@@ -442,6 +434,8 @@ export default function BullectChart(props: any) {
       .attr('points', (d: any, index: any) =>
         f(d.percent) < 5 ? generatePoints(d, index) : '',
       );
+
+    // draw polylines
     selection
       .selectAll('polyline')
       .data(_data)
@@ -453,6 +447,7 @@ export default function BullectChart(props: any) {
       .attr('points', (d: any, index: any) =>
         f(d.percent) < 5 ? getPoints(d, index) : '',
       );
+
     // append text at the end of line
     // d3.selectAll('line-text').remove();
     selection
@@ -474,33 +469,6 @@ export default function BullectChart(props: any) {
         f(d.percent) < 5 ? d.metricpossible + ', ' + f(d.percent) + '%' : '',
       );
 
-    /* // Legends drawing
-    const size = 10;
-    selection
-      .selectAll('legend-circle')
-      .data(uniqueCompanies)
-      .enter()
-      .append('rect')
-      .attr('x', (d: any, i: any) => i * (w / uniqueCompanies.length))
-      .attr('y', h / 2 + 30)
-      .attr('width', size)
-      .attr('height', size)
-      .style('fill', (d: any, index: any) => d.color);
-
-    // legend labels
-    d3.selectAll('legend-label').remove();
-    selection
-      .selectAll('.legend-label')
-      .data(uniqueCompanies)
-      .enter()
-      .append('text')
-      .attr('class', 'legend-label')
-      .attr('font-size', '11px')
-      .attr('x', (d: any, i: any) => i * (w / uniqueCompanies.length) + 15)
-      .attr('y', h / 2 + 38) 
-      .style('fill', (d: any, index: any) => d.color)
-      .text((d: any) => d.company)
-      .attr('text-anchor', 'left'); */
   };
 
   return <div id="graphic" style={{ padding: '0px 50px' }}></div>;

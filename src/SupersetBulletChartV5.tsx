@@ -129,7 +129,7 @@ export default function SupersetBulletChartV5(
 
   const newProps = {
     // height: uniquePeriod.length > 1 ? props.height / 1.6 : props.height,
-    height: 220,
+    height: 160,
     colorScheme: props.colorScheme,
     width: props.width,
     orderDesc: props.orderDesc,
